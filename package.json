@@ -1,5 +1,5 @@
 {
-    "name":"webant-handler-handlebars",
+    "name":"webant-handler-hbs",
     "author":"A Kazim",
     "description":"A handler for the webant module for handlebars requires.",
     "keywords":[
@@ -7,7 +7,7 @@
         "handlebars",
         "webant"
     ],
-    "version":"0.3.0",
+    "version":"0.3.1",
     "dependencies":{
         "handlebars": "1.0.x"
     },
