@@ -1,0 +1,23 @@
+{
+    "name":"webant-handler-handlebars",
+    "author":"A Kazim",
+    "description":"A handler for the webant module for handlebars requires.",
+    "keywords":[
+        "ant",
+        "handlebars",
+        "webant"
+    ],
+    "version":"0.3.0",
+    "dependencies":{
+        "handlebars": "1.0.x"
+    },
+    "devDependencies":{
+        "test":"0.6.x"
+    },
+    "repository":"git://github.com/theakman2/node-modules-webant-handler-hbs.git",
+    "main":"./lib/index.js",
+    "scripts":{
+        "test":"node ./test/index.js"
+    },
+    "license":"MIT"
+}
