@@ -3,73 +3,40 @@ var vm = require("vm");
 var handlebars = require("handlebars");
 
 var Handler = require("../lib/index.js");
-var HandlerBase = require("./lib/Handler.js");
-
-function createHandler(Handler,settings) {
-	var handlerBase = new HandlerBase(settings);
-	
-	Handler.prototype = handlerBase;
-	Handler.prototype.constructor = Handler;
-	
-	return new Handler();
-}
 
 var tests = {
-	"test handlebars 1":function(assert,done) {
-		var handler = createHandler(Handler);
-		var data = {
-			filePath:"https://sfi9s.sdf.sd/vk93k.handlebars?bla=3",
-			raw:"https://sfi9s.sdf.sd/vk93k.handlebars?bla=3",
-			requireType:"comment"
-		};
-		handler.willHandle(data,function(err,yes){
-			assert.strictEqual(err,null,"Handler should not report any errors.");
-			assert.strictEqual(yes,false,"Handler should not claim to handle this file.");
-			done();
-		});
+	"test filetypes":function(assert) {
+		var handler = new Handler();
+		var data = [
+		            "http://mysite.co.uk/bla.js",
+		            "//cdn.google.com/path/to/assets.css",
+		            "path/to/assets.hbs",
+		            "/abs/path/to/assets.handlebars",
+		            "path/to/assets.handlebars",
+		            "/abs/path/to/assets.hbs",
+		            "@@hbs/runtime",
+		            "@@css/addStylesheet"
+		            ];
+		assert.deepEqual(
+			data.map(handler.willHandle),
+			[false,false,true,true,true,true,true,false],
+			"Should handle the correct files."
+		);
 	},
-	"test handlebars 2":function(assert,done) {
-		var handler = createHandler(Handler);
-		var data = {
-			filePath:__dirname+"/path/to/bad/file.json",
-			raw:"file.json",
-			requireType:"function"
-		};
-		handler.willHandle(data,function(err,yes){
-			assert.strictEqual(err,null,"Handler should not report any errors.");
-			assert.strictEqual(yes,false,"Handler should not claim to handle this file.");
-			done();
-		});
-	},
-	"test handlebars 3":function(assert,done) {
-		var handler = createHandler(Handler,{requireRuntime:false});
-		var data = {
-			filePath:__dirname+"/tmpl.hbs",
-			requireType:"function",
-			raw:"../tmpl.hbs"
-		};
+	"test response":function(assert,done) {
+		var handler = new Handler({requireRuntime:false});
 		
-		handler.handle(data,function(resp){
-			assert.strictEqual(
-				resp.type,
-				"internalJs",
-				"Handler should be calling callback correctly (1)."
-			);
-			
-			assert.strictEqual(
-				resp.hasOwnProperty("content"),
-				true,
-				"Handler should be calling callback correctly (2)."
-			);
+		handler.handle(__dirname+"/tmpl.hbs",function(err,content){
+			assert.ok(!err,"There should be no errors handling this file.");
 			
 			var context = vm.createContext({module: {exports: {}}});
 			
-			vm.runInContext(resp.content,context);
+			vm.runInContext(content,context);
 			
 			assert.strictEqual(
 				handlebars.template(context.module.exports)({name:"test"}),
 				"Testing test.",
-				"Handler should be calling callback correctly (3)."
+				"Handler should be calling callback correctly."
 			);
 			
 			done();

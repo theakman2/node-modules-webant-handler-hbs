@@ -12,14 +12,12 @@ If for some reason you'd like to use the module outside of webant, install as fo
 
 ## Usage
 
-Ensure the `hbs` handler is present in your webant configuration file.
-
-An example configuration file which uses this handler may look like this:
+Ensure the `hbs` handler is present in your webant configuration file. For example:
 
 ````json
 {
-    "jsEntryPath":"%%base%%/src/js/main.js",
-    "jsDestPath":"%%base%%/build/main.js",
+    "entry":"src/js/main.js",
+    "dest":"build/main.js",
     "handlers":{
         "hbs":{
             "requireRuntime":true
@@ -28,7 +26,7 @@ An example configuration file which uses this handler may look like this:
 }
 ````
 
-You may now `require` handlebars files via the function style:
+You may now `require` handlebars files:
 
 ````javascript
 var tmpl = require("./path/to/template.hbs");
