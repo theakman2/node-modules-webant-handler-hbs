@@ -9,13 +9,13 @@
     "handlebars",
     "webant"
   ],
-  "version": "0.4.0",
+  "version": "0.4.1",
   "dependencies": {
-    "js-string-escape":"1.0.x",
+    "js-string-escape": "1.0.x",
     "handlebars": "1.0.x"
   },
   "devDependencies": {
-    "extend":"1.2.x",
+    "extend": "1.2.x",
     "test": "0.6.x"
   },
   "repository": {
@@ -26,5 +26,12 @@
   "scripts": {
     "test": "node ./test/index.js"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "readme": "# node-modules-webant-handler-hbs\n\n_Require handlebars templates with [webant](https://github.com/theakman2/node-modules-webant)_\n\n## Installation\n\nThere should be no need to install this module since it's required by the [webant](https://github.com/theakman2/node-modules-webant) module by default.\n\nIf for some reason you'd like to use the module outside of webant, install as follows:\n\n    $ npm install webant-handler-hbs\n\n## Usage\n\nEnsure the `hbs` handler is present in your webant configuration file. For example:\n\n````json\n{\n    \"entry\":\"src/js/main.js\",\n    \"dest\":\"build/main.js\",\n    \"handlers\":{\n        \"hbs\":{\n            \"requireRuntime\":true\n        }\n    }\n}\n````\n\nYou may now `require` handlebars files:\n\n````javascript\nvar tmpl = require(\"./path/to/template.hbs\");\nvar otherTmpl = require(\"./path/to/template.handlebars\");\nvar html = tmpl({name:\"Jane Doe\"});\n````\n\n## Settings\n\nThe following configuration settings are available:\n\n`requireRuntime`\n\nCan be either `true` (default) or `false`. If `true`, the handlebars runtime is automatically `require`d along with the template. This allows easier usage of the template as follows:\n\n```javascript\nvar tmpl = require(\"./path/to/template.hbs\");\nvar html = tmpl({name:\"Jane Doe\"});\n```\n\nIf set to `false`, you'll need to include the handlebars runtime yourself as follows:\n\n```javascript\nvar hbs = require(\"path/to/handlebars.runtime.js\");\nvar tmpl = require(\"./path/to/template.hbs\");\nvar tmplFunc = hbs.template(tmpl);\nvar html = tmplFunc({name:\"Jane Doe\"});\n```\n\nIt may be necessary to modify the handlebars runtime to export the Handlebars object by appending the following line:\n\n```javascript\n// Handlebars code...\nmodule.exports = Handlebars;\n```\n\n## Tests\n\n    $ npm test",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/theakman2/node-modules-webant-handler-hbs/issues"
+  },
+  "_id": "webant-handler-hbs@0.4.0",
+  "_from": "webant-handler-hbs@0.4.x"
 }
