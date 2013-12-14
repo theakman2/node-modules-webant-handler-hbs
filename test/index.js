@@ -2,11 +2,10 @@ var vm = require("vm");
 
 var handlebars = require("handlebars");
 
-var Handler = require("../lib/index.js");
+var handler = require("../lib/index.js");
 
 var tests = {
 	"test filetypes":function(assert) {
-		var handler = new Handler();
 		var data = [
 		            "http://mysite.co.uk/bla.js",
 		            "//cdn.google.com/path/to/assets.css",
@@ -18,15 +17,13 @@ var tests = {
 		            "@@css/addStylesheet"
 		            ];
 		assert.deepEqual(
-			data.map(handler.willHandle),
+			data.map(function(fp){ return handler.willHandle(fp);}),
 			[false,false,true,true,true,true,true,false],
 			"Should handle the correct files."
 		);
 	},
-	"test response":function(assert,done) {
-		var handler = new Handler({requireRuntime:false});
-		
-		handler.handle(__dirname+"/tmpl.hbs",function(err,content){
+	"test response":function(assert,done) {		
+		handler.handle(__dirname+"/tmpl.hbs",{requireRuntime:false},function(err,content){
 			assert.ok(!err,"There should be no errors handling this file.");
 			
 			var context = vm.createContext({module: {exports: {}}});

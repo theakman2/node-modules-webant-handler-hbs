@@ -63,6 +63,6 @@ It may be necessary to modify the handlebars runtime to export the Handlebars ob
 module.exports = Handlebars;
 ```
 
-## Tests
+## Tests [![Build Status](https://travis-ci.org/theakman2/node-modules-webant-handler-hbs.png?branch=master)](https://travis-ci.org/theakman2/node-modules-webant-handler-hbs)
 
     $ npm test
