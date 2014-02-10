@@ -1,0 +1,1 @@
+process.stdout.write(require("./_hbs.js")({name:"Bob"}));
