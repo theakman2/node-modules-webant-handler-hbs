@@ -4,10 +4,6 @@ _Require handlebars templates with [webant](https://github.com/theakman2/node-mo
 
 ## Installation
 
-There should be no need to install this module since it's required by the [webant](https://github.com/theakman2/node-modules-webant) module by default.
-
-If for some reason you'd like to use the module outside of webant, install as follows:
-
     $ npm install webant-handler-hbs
 
 ## Usage
@@ -18,11 +14,7 @@ Ensure the `hbs` handler is present in your webant configuration file. For examp
 {
     "entry":"src/js/main.js",
     "dest":"build/main.js",
-    "handlers":{
-        "hbs":{
-            "requireRuntime":true
-        }
-    }
+    "handlers":["hbs"]
 }
 ````
 
@@ -52,7 +44,7 @@ If set to `false`, you'll need to include the handlebars runtime yourself as fol
 ```javascript
 var hbs = require("path/to/handlebars.runtime.js");
 var tmpl = require("./path/to/template.hbs");
-var tmplFunc = hbs.template(tmpl);
+var tmplFunc = hbs['default'].template(tmpl);
 var html = tmplFunc({name:"Jane Doe"});
 ```
 
@@ -64,5 +56,7 @@ module.exports = Handlebars;
 ```
 
 ## Tests [![Build Status](https://travis-ci.org/theakman2/node-modules-webant-handler-hbs.png?branch=master)](https://travis-ci.org/theakman2/node-modules-webant-handler-hbs)
+
+Ensure [phantomjs](http://phantomjs.org) is installed and in your PATH, then run:
 
     $ npm test

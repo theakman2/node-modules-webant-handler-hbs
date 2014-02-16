@@ -1,93 +1,65 @@
 var fs = require("fs");
 var path = require("path");
 var vm = require("vm");
-var execFile = require('child_process').execFile;
+var childProcess = require("child_process");
 
-var handlebars = require("handlebars");
-var jsEscape = require("js-string-escape");
 var shellEscape = require("shell-escape");
+var webant = require("webant");
 
 var handler = require("../lib/index.js");
 
-var tmpFile = __dirname + "/_hbs.js";
-var nodeScript = __dirname + "/_test.js";
-
-var fp = jsEscape(path.join(
-	__dirname,
-	"..",
-	"node_modules",
-	"handlebars",
-	"dist",
-	"cjs",
-	"handlebars.runtime.js"
-));
+function phantom(assert,done,cb) {
+	var pjs = childProcess.exec(
+		'phantomjs ' + shellEscape([path.join(__dirname,"headless","phantomwebant.js")]),
+		{
+			cwd:path.join(__dirname,"headless"),
+			maxBuffer:1024*1024
+		},
+		function(err,stdout,stderr) {
+			pjs.kill();
+			if (err) {
+				assert.fail("phantomjs reports an error: " + err);
+				done();
+				return;
+			}
+			if (stderr) {
+				assert.fail("phantomjs reports content in stderror: " + stderr);
+				done();
+				return;
+			}
+			var out;
+			try {
+				out = JSON.parse(stdout.trim());
+			} catch(e) {
+				assert.fail("Could not JSON.parse() stdout [stdout is: " + stdout + "]");
+				done();
+				return;
+			}
+			cb(out);
+		}
+	);
+}
 
 var tests = {
-	"test filetypes":function(assert) {
-		var data = [
-		            "http://mysite.co.uk/bla.js",
-		            "//cdn.google.com/path/to/assets.css",
-		            "path/to/assets.hbs",
-		            "/abs/path/to/assets.handlebars",
-		            "path/to/assets.handlebars",
-		            "/abs/path/to/assets.hbs",
-		            "@@hbs/runtime",
-		            "@@css/addStylesheet"
-		            ];
-		assert.deepEqual(
-			data.map(function(fp){ return handler.willHandle(fp);}),
-			[false,false,true,true,true,true,false,false],
-			"Should handle the correct files."
-		);
-	},
-	"test response":function(assert,done) {		
-		handler.handle(__dirname+"/tmpl.hbs",{requireRuntime:false},function(err,content){
-			assert.ok(!err,"There should be no errors handling this file.");
-			
-			var context = vm.createContext({module: {exports: {}}});
-			
-			vm.runInContext(content,context);
-			
-			assert.strictEqual(
-				handlebars.template(context.module.exports)({name:"test"}),
-				"Testing test.",
-				"Handler should be calling callback correctly."
-			);
-			
-			done();
-		});
-	},
-	"test response 2":function(assert,done) {		
-		handler.handle(__dirname+"/tmpl.hbs",{},function(err,content){
-			assert.ok(!err,"There should be no errors handling this file.");
-			// node doesn't understand the exclamation mark
-			content = content.replace(
-				"module.exports = require('!"+fp+"')",
-				"module.exports = require('"+fp+"')"
-			);
-			fs.writeFile(tmpFile,content,function(err){
-				if (err) {
-					assert.fail("Error writing temp file at " + tmpFile + ": " + err);
-					done();
-					return;
-				}
-				var escaped = shellEscape([nodeScript]);
-				var child = execFile(process.execPath,[escaped],function(err,stdout,stderr){
-					child.kill();
-					if (err || stderr) {
-						assert.fail("error spawning separate node process: " + err + stderr);
-						done();
-						return;
-					}
-					assert.strictEqual(
-						stdout,
-						"Testing Bob.",
-						"Handler should be calling callback correctly."
-					);
-					done();
-				});
-			});			
-			
+	"test handler":function(assert,done) {
+		webant({
+			entry:path.join(__dirname,"headless","entry.js"),
+			dest:path.join(__dirname,"headless","main.js"),
+			handlers:[handler]
+		},function(err){
+			if (err) {
+				assert.fail("Webant should not error when parsing javascript (error: " + err + ")");
+				done();
+				return;
+			}
+			phantom(assert,done,function(out){
+				assert.strictEqual(
+					out,
+					"My name is foo!Your name is bar.4",
+					"handlebars should be compiled correctly"
+				);
+				done();
+			});
 		});
 	}
 };
