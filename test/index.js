@@ -4,7 +4,7 @@ var vm = require("vm");
 var childProcess = require("child_process");
 
 var shellEscape = require("shell-escape");
-var webant = require("webant");
+var Webant = require("webant");
 
 var handler = require("../lib/index.js");
 
@@ -42,11 +42,12 @@ function phantom(assert,done,cb) {
 
 var tests = {
 	"test handler":function(assert,done) {
-		webant({
+		var webant = new Webant({
 			entry:path.join(__dirname,"headless","entry.js"),
 			dest:path.join(__dirname,"headless","main.js"),
 			handlers:[handler]
-		},function(err){
+		});
+		webant.build(function(err){
 			if (err) {
 				assert.fail("Webant should not error when parsing javascript (error: " + err + ")");
 				done();

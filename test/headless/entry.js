@@ -1,4 +1,4 @@
-var handlebars = require("@@hbs/runtime");
+var handlebars = require("{hbs/runtime}");
 
 var tmpl1 = require("tmpl1.hbs");
 var tmpl2 = require("tmpl2.handlebars");

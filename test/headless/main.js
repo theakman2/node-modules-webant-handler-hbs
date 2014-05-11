@@ -1,101 +1,147 @@
-!function(r){function o(t,e){if("function"==typeof e){var n=o(t);return e.apply(void 0,"string"==typeof t[0]?[n]:n),void 0}if("string"==typeof t){var $=r[t];if($.hasOwnProperty("__module"))return $.__module.exports;var i,u={};return $.__module=i={exports:u},$.call(void 0,o,i,u),i.exports}for(var n=[],f=0;f<t.length;f++)n.push(o(t[f]));return n}o("0")}({
-"0":function(require,module,exports) {
-var handlebars = require("1");
-
-var tmpl1 = require("2");
-
-var tmpl2 = require("3");
-
-window.__global = tmpl1({
-    name: "foo"
-}) + tmpl2({
-    name: "bar"
-}) + handlebars["default"].COMPILER_REVISION;
-},"1":function(require,module,exports) {
+window["__MODULES__"] = window["__MODULES__"] || {};
+window["__MODULES__"].modules = window["__MODULES__"].modules || {};
+window["__MODULES__"].modules['main.js'] = {
+"8":function(require,module,exports) {
 "use strict";
 
-/*globals Handlebars: true */
-var base = require("4");
+// Build out our basic SafeString type
+function SafeString(string) {
+    this.string = string;
+}
 
-// Each of these augment the Handlebars object. No need to setup here.
-// (This is done to easily share code between commonjs and browse envs)
-var SafeString = require("6")["default"];
-
-var Exception = require("8")["default"];
-
-var Utils = require("5");
-
-var runtime = require("7");
-
-// For compatibility and usage outside of module systems, make the Handlebars object a namespace
-var create = function() {
-    var hb = new base.HandlebarsEnvironment();
-    Utils.extend(hb, base);
-    hb.SafeString = SafeString;
-    hb.Exception = Exception;
-    hb.Utils = Utils;
-    hb.VM = runtime;
-    hb.template = function(spec) {
-        return runtime.template(spec, hb);
-    };
-    return hb;
+SafeString.prototype.toString = function() {
+    return "" + this.string;
 };
 
-var Handlebars = create();
-
-Handlebars.create = create;
-
-exports["default"] = Handlebars;
-},"2":function(require,module,exports) {
-module.exports = require("1")["default"].template(function(Handlebars, depth0, helpers, partials, data) {
-    this.compilerInfo = [ 4, ">= 1.0.0" ];
-    helpers = this.merge(helpers, Handlebars.helpers);
-    data = data || {};
-    var buffer = "", stack1, helper, functionType = "function", escapeExpression = this.escapeExpression;
-    buffer += "My name is ";
-    if (helper = helpers.name) {
-        stack1 = helper.call(depth0, {
-            hash: {},
-            data: data
-        });
-    } else {
-        helper = depth0 && depth0.name;
-        stack1 = typeof helper === functionType ? helper.call(depth0, {
-            hash: {},
-            data: data
-        }) : helper;
-    }
-    buffer += escapeExpression(stack1) + "!";
-    return buffer;
-});
-},"3":function(require,module,exports) {
-module.exports = require("1")["default"].template(function(Handlebars, depth0, helpers, partials, data) {
-    this.compilerInfo = [ 4, ">= 1.0.0" ];
-    helpers = this.merge(helpers, Handlebars.helpers);
-    data = data || {};
-    var buffer = "", stack1, helper, functionType = "function", escapeExpression = this.escapeExpression;
-    buffer += "Your name is ";
-    if (helper = helpers.name) {
-        stack1 = helper.call(depth0, {
-            hash: {},
-            data: data
-        });
-    } else {
-        helper = depth0 && depth0.name;
-        stack1 = typeof helper === functionType ? helper.call(depth0, {
-            hash: {},
-            data: data
-        }) : helper;
-    }
-    buffer += escapeExpression(stack1) + ".";
-    return buffer;
-});
-},"4":function(require,module,exports) {
+exports["default"] = SafeString;
+},
+"7":function(require,module,exports) {
 "use strict";
 
-var Utils = require("5");
+/*jshint -W004 */
+var SafeString = require([ "main.js", "8" ])["default"];
 
-var Exception = require("8")["default"];
+var escape = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#x27;",
+    "`": "&#x60;"
+};
+
+var badChars = /[&<>"'`]/g;
+
+var possible = /[&<>"'`]/;
+
+function escapeChar(chr) {
+    return escape[chr] || "&amp;";
+}
+
+function extend(obj, value) {
+    for (var key in value) {
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+            obj[key] = value[key];
+        }
+    }
+}
+
+exports.extend = extend;
+
+var toString = Object.prototype.toString;
+
+exports.toString = toString;
+
+// Sourced from lodash
+// https://github.com/bestiejs/lodash/blob/master/LICENSE.txt
+var isFunction = function(value) {
+    return typeof value === "function";
+};
+
+// fallback for older versions of Chrome and Safari
+if (isFunction(/x/)) {
+    isFunction = function(value) {
+        return typeof value === "function" && toString.call(value) === "[object Function]";
+    };
+}
+
+var isFunction;
+
+exports.isFunction = isFunction;
+
+var isArray = Array.isArray || function(value) {
+    return value && typeof value === "object" ? toString.call(value) === "[object Array]" : false;
+};
+
+exports.isArray = isArray;
+
+function escapeExpression(string) {
+    // don't escape SafeStrings, since they're already safe
+    if (string instanceof SafeString) {
+        return string.toString();
+    } else {
+        if (!string && string !== 0) {
+            return "";
+        }
+    }
+    // Force a string conversion as this will be done by the append regardless and
+    // the regex test will do this transparently behind the scenes, causing issues if
+    // an object's to string has escaped characters in it.
+    string = "" + string;
+    if (!possible.test(string)) {
+        return string;
+    }
+    return string.replace(badChars, escapeChar);
+}
+
+exports.escapeExpression = escapeExpression;
+
+function isEmpty(value) {
+    if (!value && value !== 0) {
+        return true;
+    } else {
+        if (isArray(value) && value.length === 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+exports.isEmpty = isEmpty;
+},
+"6":function(require,module,exports) {
+"use strict";
+
+var errorProps = [ "description", "fileName", "lineNumber", "message", "name", "number", "stack" ];
+
+function Exception(message, node) {
+    var line;
+    if (node && node.firstLine) {
+        line = node.firstLine;
+        message += " - " + line + ":" + node.firstColumn;
+    }
+    var tmp = Error.prototype.constructor.call(this, message);
+    // Unfortunately errors are not enumerable in Chrome (at least), so `for prop in tmp` doesn't work.
+    for (var idx = 0; idx < errorProps.length; idx++) {
+        this[errorProps[idx]] = tmp[errorProps[idx]];
+    }
+    if (line) {
+        this.lineNumber = line;
+        this.column = node.firstColumn;
+    }
+}
+
+Exception.prototype = new Error();
+
+exports["default"] = Exception;
+},
+"5":function(require,module,exports) {
+"use strict";
+
+var Utils = require([ "main.js", "7" ]);
+
+var Exception = require([ "main.js", "6" ])["default"];
 
 var VERSION = "1.3.0";
 
@@ -297,123 +343,17 @@ var createFrame = function(object) {
 };
 
 exports.createFrame = createFrame;
-},"5":function(require,module,exports) {
+},
+"4":function(require,module,exports) {
 "use strict";
 
-/*jshint -W004 */
-var SafeString = require("6")["default"];
+var Utils = require([ "main.js", "7" ]);
 
-var escape = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#x27;",
-    "`": "&#x60;"
-};
+var Exception = require([ "main.js", "6" ])["default"];
 
-var badChars = /[&<>"'`]/g;
+var COMPILER_REVISION = require([ "main.js", "5" ]).COMPILER_REVISION;
 
-var possible = /[&<>"'`]/;
-
-function escapeChar(chr) {
-    return escape[chr] || "&amp;";
-}
-
-function extend(obj, value) {
-    for (var key in value) {
-        if (Object.prototype.hasOwnProperty.call(value, key)) {
-            obj[key] = value[key];
-        }
-    }
-}
-
-exports.extend = extend;
-
-var toString = Object.prototype.toString;
-
-exports.toString = toString;
-
-// Sourced from lodash
-// https://github.com/bestiejs/lodash/blob/master/LICENSE.txt
-var isFunction = function(value) {
-    return typeof value === "function";
-};
-
-// fallback for older versions of Chrome and Safari
-if (isFunction(/x/)) {
-    isFunction = function(value) {
-        return typeof value === "function" && toString.call(value) === "[object Function]";
-    };
-}
-
-var isFunction;
-
-exports.isFunction = isFunction;
-
-var isArray = Array.isArray || function(value) {
-    return value && typeof value === "object" ? toString.call(value) === "[object Array]" : false;
-};
-
-exports.isArray = isArray;
-
-function escapeExpression(string) {
-    // don't escape SafeStrings, since they're already safe
-    if (string instanceof SafeString) {
-        return string.toString();
-    } else {
-        if (!string && string !== 0) {
-            return "";
-        }
-    }
-    // Force a string conversion as this will be done by the append regardless and
-    // the regex test will do this transparently behind the scenes, causing issues if
-    // an object's to string has escaped characters in it.
-    string = "" + string;
-    if (!possible.test(string)) {
-        return string;
-    }
-    return string.replace(badChars, escapeChar);
-}
-
-exports.escapeExpression = escapeExpression;
-
-function isEmpty(value) {
-    if (!value && value !== 0) {
-        return true;
-    } else {
-        if (isArray(value) && value.length === 0) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-}
-
-exports.isEmpty = isEmpty;
-},"6":function(require,module,exports) {
-"use strict";
-
-// Build out our basic SafeString type
-function SafeString(string) {
-    this.string = string;
-}
-
-SafeString.prototype.toString = function() {
-    return "" + this.string;
-};
-
-exports["default"] = SafeString;
-},"7":function(require,module,exports) {
-"use strict";
-
-var Utils = require("5");
-
-var Exception = require("8")["default"];
-
-var COMPILER_REVISION = require("4").COMPILER_REVISION;
-
-var REVISION_CHANGES = require("4").REVISION_CHANGES;
+var REVISION_CHANGES = require([ "main.js", "5" ]).REVISION_CHANGES;
 
 function checkRevision(compilerInfo) {
     var compilerRevision = compilerInfo && compilerInfo[0] || 1, currentRevision = COMPILER_REVISION;
@@ -550,29 +490,101 @@ function noop() {
 }
 
 exports.noop = noop;
-},"8":function(require,module,exports) {
+},
+"3":function(require,module,exports) {
+module.exports = require([ "main.js", "2" ])["default"].template(function(Handlebars, depth0, helpers, partials, data) {
+    this.compilerInfo = [ 4, ">= 1.0.0" ];
+    helpers = this.merge(helpers, Handlebars.helpers);
+    data = data || {};
+    var buffer = "", stack1, helper, functionType = "function", escapeExpression = this.escapeExpression;
+    buffer += "My name is ";
+    if (helper = helpers.name) {
+        stack1 = helper.call(depth0, {
+            hash: {},
+            data: data
+        });
+    } else {
+        helper = depth0 && depth0.name;
+        stack1 = typeof helper === functionType ? helper.call(depth0, {
+            hash: {},
+            data: data
+        }) : helper;
+    }
+    buffer += escapeExpression(stack1) + "!";
+    return buffer;
+});
+},
+"2":function(require,module,exports) {
 "use strict";
 
-var errorProps = [ "description", "fileName", "lineNumber", "message", "name", "number", "stack" ];
+/*globals Handlebars: true */
+var base = require([ "main.js", "5" ]);
 
-function Exception(message, node) {
-    var line;
-    if (node && node.firstLine) {
-        line = node.firstLine;
-        message += " - " + line + ":" + node.firstColumn;
-    }
-    var tmp = Error.prototype.constructor.call(this, message);
-    // Unfortunately errors are not enumerable in Chrome (at least), so `for prop in tmp` doesn't work.
-    for (var idx = 0; idx < errorProps.length; idx++) {
-        this[errorProps[idx]] = tmp[errorProps[idx]];
-    }
-    if (line) {
-        this.lineNumber = line;
-        this.column = node.firstColumn;
-    }
-}
+// Each of these augment the Handlebars object. No need to setup here.
+// (This is done to easily share code between commonjs and browse envs)
+var SafeString = require([ "main.js", "8" ])["default"];
 
-Exception.prototype = new Error();
+var Exception = require([ "main.js", "6" ])["default"];
 
-exports["default"] = Exception;
-}});
+var Utils = require([ "main.js", "7" ]);
+
+var runtime = require([ "main.js", "4" ]);
+
+// For compatibility and usage outside of module systems, make the Handlebars object a namespace
+var create = function() {
+    var hb = new base.HandlebarsEnvironment();
+    Utils.extend(hb, base);
+    hb.SafeString = SafeString;
+    hb.Exception = Exception;
+    hb.Utils = Utils;
+    hb.VM = runtime;
+    hb.template = function(spec) {
+        return runtime.template(spec, hb);
+    };
+    return hb;
+};
+
+var Handlebars = create();
+
+Handlebars.create = create;
+
+exports["default"] = Handlebars;
+},
+"1":function(require,module,exports) {
+module.exports = require([ "main.js", "2" ])["default"].template(function(Handlebars, depth0, helpers, partials, data) {
+    this.compilerInfo = [ 4, ">= 1.0.0" ];
+    helpers = this.merge(helpers, Handlebars.helpers);
+    data = data || {};
+    var buffer = "", stack1, helper, functionType = "function", escapeExpression = this.escapeExpression;
+    buffer += "Your name is ";
+    if (helper = helpers.name) {
+        stack1 = helper.call(depth0, {
+            hash: {},
+            data: data
+        });
+    } else {
+        helper = depth0 && depth0.name;
+        stack1 = typeof helper === functionType ? helper.call(depth0, {
+            hash: {},
+            data: data
+        }) : helper;
+    }
+    buffer += escapeExpression(stack1) + ".";
+    return buffer;
+});
+},
+"0":function(require,module,exports) {
+var handlebars = require([ "main.js", "2" ]);
+
+var tmpl1 = require([ "main.js", "3" ]);
+
+var tmpl2 = require([ "main.js", "1" ]);
+
+window.__global = tmpl1({
+    name: "foo"
+}) + tmpl2({
+    name: "bar"
+}) + handlebars["default"].COMPILER_REVISION;
+}};
+
+(function(){      function getExports(data,cb) {    var ret;    if (typeof data[0] === "string") {     try {      var fn = window["__MODULES__"].modules[data[0]][data[1]];     } catch(e) {      throw new Error("Module " + data + "not found.");      }     if (fn.hasOwnProperty("__module")) {      ret = fn.__module.exports;     } else {      var module;      var exports = {};      fn.__module = module = { exports: exports };      fn.call(       undefined,               getExports       ,       module,       exports      );      ret = module.exports;     }    } else {     ret = [];     for (var i = 0; i < data.length; i++) {      ret.push(getExports(data[i],cb));     }    }    if (typeof cb === "function") {     cb.apply(undefined,typeof data[0] === "string" ? [ret] : ret);    } else {     return ret;    }   };   window["__MODULES__"] = window["__MODULES__"] || {};   window["__MODULES__"].modules = window["__MODULES__"].modules || {};   window["__MODULES__"].getExports = getExports;       getExports(["main.js","0"]);     })();
