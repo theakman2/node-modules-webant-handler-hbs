@@ -1,6 +1,5 @@
 var fs = require("fs");
 var path = require("path");
-var vm = require("vm");
 var childProcess = require("child_process");
 
 var shellEscape = require("shell-escape");
@@ -56,7 +55,7 @@ var tests = {
 			phantom(assert,done,function(out){
 				assert.strictEqual(
 					out,
-					"My name is foo!Your name is bar.4",
+					"My name is foo!Your name is bar.6",
 					"handlebars should be compiled correctly"
 				);
 				done();

@@ -2,6 +2,36 @@ window["__MODULES__"] = window["__MODULES__"] || {};
 window["__MODULES__"].modules = window["__MODULES__"].modules || {};
 window["__MODULES__"].modules['main.js'] = {
 "8":function(require,module,exports) {
+module.exports = require([ "main.js", "1" ])["default"].template({
+    compiler: [ 6, ">= 2.0.0-beta.1" ],
+    main: function(depth0, helpers, partials, data) {
+        var helper, functionType = "function", helperMissing = helpers.helperMissing, escapeExpression = this.escapeExpression;
+        return "My name is " + escapeExpression((helper = (helper = helpers.name || (depth0 != null ? depth0.name : depth0)) != null ? helper : helperMissing, 
+        typeof helper === functionType ? helper.call(depth0, {
+            name: "name",
+            hash: {},
+            data: data
+        }) : helper)) + "!";
+    },
+    useData: true
+});
+},
+"7":function(require,module,exports) {
+module.exports = require([ "main.js", "1" ])["default"].template({
+    compiler: [ 6, ">= 2.0.0-beta.1" ],
+    main: function(depth0, helpers, partials, data) {
+        var helper, functionType = "function", helperMissing = helpers.helperMissing, escapeExpression = this.escapeExpression;
+        return "Your name is " + escapeExpression((helper = (helper = helpers.name || (depth0 != null ? depth0.name : depth0)) != null ? helper : helperMissing, 
+        typeof helper === functionType ? helper.call(depth0, {
+            name: "name",
+            hash: {},
+            data: data
+        }) : helper)) + ".";
+    },
+    useData: true
+});
+},
+"6":function(require,module,exports) {
 "use strict";
 
 // Build out our basic SafeString type
@@ -15,11 +45,11 @@ SafeString.prototype.toString = function() {
 
 exports["default"] = SafeString;
 },
-"7":function(require,module,exports) {
+"5":function(require,module,exports) {
 "use strict";
 
 /*jshint -W004 */
-var SafeString = require([ "main.js", "8" ])["default"];
+var SafeString = require([ "main.js", "6" ])["default"];
 
 var escape = {
     "&": "&amp;",
@@ -35,15 +65,18 @@ var badChars = /[&<>"'`]/g;
 var possible = /[&<>"'`]/;
 
 function escapeChar(chr) {
-    return escape[chr] || "&amp;";
+    return escape[chr];
 }
 
-function extend(obj, value) {
-    for (var key in value) {
-        if (Object.prototype.hasOwnProperty.call(value, key)) {
-            obj[key] = value[key];
+function extend(obj) {
+    for (var i = 1; i < arguments.length; i++) {
+        for (var key in arguments[i]) {
+            if (Object.prototype.hasOwnProperty.call(arguments[i], key)) {
+                obj[key] = arguments[i][key];
+            }
         }
     }
+    return obj;
 }
 
 exports.extend = extend;
@@ -59,6 +92,7 @@ var isFunction = function(value) {
 };
 
 // fallback for older versions of Chrome and Safari
+/* istanbul ignore next */
 if (isFunction(/x/)) {
     isFunction = function(value) {
         return typeof value === "function" && toString.call(value) === "[object Function]";
@@ -69,6 +103,7 @@ var isFunction;
 
 exports.isFunction = isFunction;
 
+/* istanbul ignore next */
 var isArray = Array.isArray || function(value) {
     return value && typeof value === "object" ? toString.call(value) === "[object Array]" : false;
 };
@@ -80,8 +115,12 @@ function escapeExpression(string) {
     if (string instanceof SafeString) {
         return string.toString();
     } else {
-        if (!string && string !== 0) {
+        if (string == null) {
             return "";
+        } else {
+            if (!string) {
+                return string + "";
+            }
         }
     }
     // Force a string conversion as this will be done by the append regardless and
@@ -109,8 +148,14 @@ function isEmpty(value) {
 }
 
 exports.isEmpty = isEmpty;
+
+function appendContextPath(contextPath, id) {
+    return (contextPath ? contextPath + "." : "") + id;
+}
+
+exports.appendContextPath = appendContextPath;
 },
-"6":function(require,module,exports) {
+"4":function(require,module,exports) {
 "use strict";
 
 var errorProps = [ "description", "fileName", "lineNumber", "message", "name", "number", "stack" ];
@@ -136,18 +181,18 @@ Exception.prototype = new Error();
 
 exports["default"] = Exception;
 },
-"5":function(require,module,exports) {
+"3":function(require,module,exports) {
 "use strict";
 
-var Utils = require([ "main.js", "7" ]);
+var Utils = require([ "main.js", "5" ]);
 
-var Exception = require([ "main.js", "6" ])["default"];
+var Exception = require([ "main.js", "4" ])["default"];
 
-var VERSION = "1.3.0";
+var VERSION = "2.0.0";
 
 exports.VERSION = VERSION;
 
-var COMPILER_REVISION = 4;
+var COMPILER_REVISION = 6;
 
 exports.COMPILER_REVISION = COMPILER_REVISION;
 
@@ -156,7 +201,9 @@ var REVISION_CHANGES = {
     // 1.0.rc.2 is actually rev2 but doesn't report it
     2: "== 1.0.0-rc.3",
     3: "== 1.0.0-rc.4",
-    4: ">= 1.0.0"
+    4: "== 1.x.x",
+    5: "== 2.0.0-alpha.x",
+    6: ">= 2.0.0-beta.1"
 };
 
 exports.REVISION_CHANGES = REVISION_CHANGES;
@@ -175,41 +222,43 @@ HandlebarsEnvironment.prototype = {
     constructor: HandlebarsEnvironment,
     logger: logger,
     log: log,
-    registerHelper: function(name, fn, inverse) {
+    registerHelper: function(name, fn) {
         if (toString.call(name) === objectType) {
-            if (inverse || fn) {
+            if (fn) {
                 throw new Exception("Arg not supported with multiple helpers");
             }
             Utils.extend(this.helpers, name);
         } else {
-            if (inverse) {
-                fn.not = inverse;
-            }
             this.helpers[name] = fn;
         }
     },
-    registerPartial: function(name, str) {
+    unregisterHelper: function(name) {
+        delete this.helpers[name];
+    },
+    registerPartial: function(name, partial) {
         if (toString.call(name) === objectType) {
             Utils.extend(this.partials, name);
         } else {
-            this.partials[name] = str;
+            this.partials[name] = partial;
         }
+    },
+    unregisterPartial: function(name) {
+        delete this.partials[name];
     }
 };
 
 function registerDefaultHelpers(instance) {
-    instance.registerHelper("helperMissing", function(arg) {
-        if (arguments.length === 2) {
+    instance.registerHelper("helperMissing", function() {
+        if (arguments.length === 1) {
+            // A missing field in a {{foo}} constuct.
             return undefined;
         } else {
-            throw new Exception("Missing helper: '" + arg + "'");
+            // Someone is actually trying to call something, blow up.
+            throw new Exception("Missing helper: '" + arguments[arguments.length - 1].name + "'");
         }
     });
     instance.registerHelper("blockHelperMissing", function(context, options) {
-        var inverse = options.inverse || function() {}, fn = options.fn;
-        if (isFunction(context)) {
-            context = context.call(this);
-        }
+        var inverse = options.inverse, fn = options.fn;
         if (context === true) {
             return fn(this);
         } else {
@@ -218,19 +267,36 @@ function registerDefaultHelpers(instance) {
             } else {
                 if (isArray(context)) {
                     if (context.length > 0) {
+                        if (options.ids) {
+                            options.ids = [ options.name ];
+                        }
                         return instance.helpers.each(context, options);
                     } else {
                         return inverse(this);
                     }
                 } else {
-                    return fn(context);
+                    if (options.data && options.ids) {
+                        var data = createFrame(options.data);
+                        data.contextPath = Utils.appendContextPath(options.data.contextPath, options.name);
+                        options = {
+                            data: data
+                        };
+                    }
+                    return fn(context, options);
                 }
             }
         }
     });
     instance.registerHelper("each", function(context, options) {
+        if (!options) {
+            throw new Exception("Must pass iterator to #each");
+        }
         var fn = options.fn, inverse = options.inverse;
         var i = 0, ret = "", data;
+        var contextPath;
+        if (options.data && options.ids) {
+            contextPath = Utils.appendContextPath(options.data.contextPath, options.ids[0]) + ".";
+        }
         if (isFunction(context)) {
             context = context.call(this);
         }
@@ -244,6 +310,9 @@ function registerDefaultHelpers(instance) {
                         data.index = i;
                         data.first = i === 0;
                         data.last = i === context.length - 1;
+                        if (contextPath) {
+                            data.contextPath = contextPath + i;
+                        }
                     }
                     ret = ret + fn(context[i], {
                         data: data
@@ -256,6 +325,9 @@ function registerDefaultHelpers(instance) {
                             data.key = key;
                             data.index = i;
                             data.first = i === 0;
+                            if (contextPath) {
+                                data.contextPath = contextPath + key;
+                            }
                         }
                         ret = ret + fn(context[key], {
                             data: data
@@ -294,13 +366,26 @@ function registerDefaultHelpers(instance) {
         if (isFunction(context)) {
             context = context.call(this);
         }
+        var fn = options.fn;
         if (!Utils.isEmpty(context)) {
-            return options.fn(context);
+            if (options.data && options.ids) {
+                var data = createFrame(options.data);
+                data.contextPath = Utils.appendContextPath(options.data.contextPath, options.ids[0]);
+                options = {
+                    data: data
+                };
+            }
+            return fn(context, options);
+        } else {
+            return options.inverse(this);
         }
     });
-    instance.registerHelper("log", function(context, options) {
+    instance.registerHelper("log", function(message, options) {
         var level = options.data && options.data.level != null ? parseInt(options.data.level, 10) : 1;
-        instance.log(level, context);
+        instance.log(level, message);
+    });
+    instance.registerHelper("lookup", function(obj, field) {
+        return obj && obj[field];
     });
 }
 
@@ -318,11 +403,11 @@ var logger = {
     ERROR: 3,
     level: 3,
     // can be overridden in the host environment
-    log: function(level, obj) {
+    log: function(level, message) {
         if (logger.level <= level) {
             var method = logger.methodMap[level];
             if (typeof console !== "undefined" && console[method]) {
-                console[method].call(console, obj);
+                console[method].call(console, message);
             }
         }
     }
@@ -330,30 +415,30 @@ var logger = {
 
 exports.logger = logger;
 
-function log(level, obj) {
-    logger.log(level, obj);
-}
+var log = logger.log;
 
 exports.log = log;
 
 var createFrame = function(object) {
-    var obj = {};
-    Utils.extend(obj, object);
-    return obj;
+    var frame = Utils.extend({}, object);
+    frame._parent = object;
+    return frame;
 };
 
 exports.createFrame = createFrame;
 },
-"4":function(require,module,exports) {
+"2":function(require,module,exports) {
 "use strict";
 
-var Utils = require([ "main.js", "7" ]);
+var Utils = require([ "main.js", "5" ]);
 
-var Exception = require([ "main.js", "6" ])["default"];
+var Exception = require([ "main.js", "4" ])["default"];
 
-var COMPILER_REVISION = require([ "main.js", "5" ]).COMPILER_REVISION;
+var COMPILER_REVISION = require([ "main.js", "3" ]).COMPILER_REVISION;
 
-var REVISION_CHANGES = require([ "main.js", "5" ]).REVISION_CHANGES;
+var REVISION_CHANGES = require([ "main.js", "3" ]).REVISION_CHANGES;
+
+var createFrame = require([ "main.js", "3" ]).createFrame;
 
 function checkRevision(compilerInfo) {
     var compilerRevision = compilerInfo && compilerInfo[0] || 1, currentRevision = COMPILER_REVISION;
@@ -372,107 +457,151 @@ exports.checkRevision = checkRevision;
 
 // TODO: Remove this line and break up compilePartial
 function template(templateSpec, env) {
+    /* istanbul ignore next */
     if (!env) {
         throw new Exception("No environment passed to template");
     }
+    if (!templateSpec || !templateSpec.main) {
+        throw new Exception("Unknown template object: " + typeof templateSpec);
+    }
     // Note: Using env.VM references rather than local var references throughout this section to allow
     // for external users to override these as psuedo-supported APIs.
-    var invokePartialWrapper = function(partial, name, context, helpers, partials, data) {
-        var result = env.VM.invokePartial.apply(this, arguments);
-        if (result != null) {
-            return result;
+    env.VM.checkRevision(templateSpec.compiler);
+    var invokePartialWrapper = function(partial, indent, name, context, hash, helpers, partials, data, depths) {
+        if (hash) {
+            context = Utils.extend({}, context, hash);
         }
-        if (env.compile) {
+        var result = env.VM.invokePartial.call(this, partial, name, context, helpers, partials, data, depths);
+        if (result == null && env.compile) {
             var options = {
                 helpers: helpers,
                 partials: partials,
-                data: data
+                data: data,
+                depths: depths
             };
             partials[name] = env.compile(partial, {
-                data: data !== undefined
+                data: data !== undefined,
+                compat: templateSpec.compat
             }, env);
-            return partials[name](context, options);
+            result = partials[name](context, options);
+        }
+        if (result != null) {
+            if (indent) {
+                var lines = result.split("\n");
+                for (var i = 0, l = lines.length; i < l; i++) {
+                    if (!lines[i] && i + 1 === l) {
+                        break;
+                    }
+                    lines[i] = indent + lines[i];
+                }
+                result = lines.join("\n");
+            }
+            return result;
         } else {
             throw new Exception("The partial " + name + " could not be compiled when running in runtime-only mode");
         }
     };
     // Just add water
     var container = {
+        lookup: function(depths, name) {
+            var len = depths.length;
+            for (var i = 0; i < len; i++) {
+                if (depths[i] && depths[i][name] != null) {
+                    return depths[i][name];
+                }
+            }
+        },
+        lambda: function(current, context) {
+            return typeof current === "function" ? current.call(context) : current;
+        },
         escapeExpression: Utils.escapeExpression,
         invokePartial: invokePartialWrapper,
+        fn: function(i) {
+            return templateSpec[i];
+        },
         programs: [],
-        program: function(i, fn, data) {
-            var programWrapper = this.programs[i];
-            if (data) {
-                programWrapper = program(i, fn, data);
+        program: function(i, data, depths) {
+            var programWrapper = this.programs[i], fn = this.fn(i);
+            if (data || depths) {
+                programWrapper = program(this, i, fn, data, depths);
             } else {
                 if (!programWrapper) {
-                    programWrapper = this.programs[i] = program(i, fn);
+                    programWrapper = this.programs[i] = program(this, i, fn);
                 }
             }
             return programWrapper;
         },
+        data: function(data, depth) {
+            while (data && depth--) {
+                data = data._parent;
+            }
+            return data;
+        },
         merge: function(param, common) {
             var ret = param || common;
             if (param && common && param !== common) {
-                ret = {};
-                Utils.extend(ret, common);
-                Utils.extend(ret, param);
+                ret = Utils.extend({}, common, param);
             }
             return ret;
         },
-        programWithDepth: env.VM.programWithDepth,
         noop: env.VM.noop,
-        compilerInfo: null
+        compilerInfo: templateSpec.compiler
     };
-    return function(context, options) {
+    var ret = function(context, options) {
         options = options || {};
-        var namespace = options.partial ? options : env, helpers, partials;
-        if (!options.partial) {
-            helpers = options.helpers;
-            partials = options.partials;
+        var data = options.data;
+        ret._setup(options);
+        if (!options.partial && templateSpec.useData) {
+            data = initData(context, data);
         }
-        var result = templateSpec.call(container, namespace, context, helpers, partials, options.data);
-        if (!options.partial) {
-            env.VM.checkRevision(container.compilerInfo);
+        var depths;
+        if (templateSpec.useDepths) {
+            depths = options.depths ? [ context ].concat(options.depths) : [ context ];
         }
-        return result;
+        return templateSpec.main.call(container, context, container.helpers, container.partials, data, depths);
     };
+    ret.isTop = true;
+    ret._setup = function(options) {
+        if (!options.partial) {
+            container.helpers = container.merge(options.helpers, env.helpers);
+            if (templateSpec.usePartial) {
+                container.partials = container.merge(options.partials, env.partials);
+            }
+        } else {
+            container.helpers = options.helpers;
+            container.partials = options.partials;
+        }
+    };
+    ret._child = function(i, data, depths) {
+        if (templateSpec.useDepths && !depths) {
+            throw new Exception("must pass parent depths");
+        }
+        return program(container, i, templateSpec[i], data, depths);
+    };
+    return ret;
 }
 
 exports.template = template;
 
-function programWithDepth(i, fn, data) {
-    var args = Array.prototype.slice.call(arguments, 3);
+function program(container, i, fn, data, depths) {
     var prog = function(context, options) {
         options = options || {};
-        return fn.apply(this, [ context, options.data || data ].concat(args));
+        return fn.call(container, context, container.helpers, container.partials, options.data || data, depths && [ context ].concat(depths));
     };
     prog.program = i;
-    prog.depth = args.length;
-    return prog;
-}
-
-exports.programWithDepth = programWithDepth;
-
-function program(i, fn, data) {
-    var prog = function(context, options) {
-        options = options || {};
-        return fn(context, options.data || data);
-    };
-    prog.program = i;
-    prog.depth = 0;
+    prog.depth = depths ? depths.length : 0;
     return prog;
 }
 
 exports.program = program;
 
-function invokePartial(partial, name, context, helpers, partials, data) {
+function invokePartial(partial, name, context, helpers, partials, data, depths) {
     var options = {
         partial: true,
         helpers: helpers,
         partials: partials,
-        data: data
+        data: data,
+        depths: depths
     };
     if (partial === undefined) {
         throw new Exception("The partial " + name + " could not be found");
@@ -490,45 +619,30 @@ function noop() {
 }
 
 exports.noop = noop;
-},
-"3":function(require,module,exports) {
-module.exports = require([ "main.js", "2" ])["default"].template(function(Handlebars, depth0, helpers, partials, data) {
-    this.compilerInfo = [ 4, ">= 1.0.0" ];
-    helpers = this.merge(helpers, Handlebars.helpers);
-    data = data || {};
-    var buffer = "", stack1, helper, functionType = "function", escapeExpression = this.escapeExpression;
-    buffer += "My name is ";
-    if (helper = helpers.name) {
-        stack1 = helper.call(depth0, {
-            hash: {},
-            data: data
-        });
-    } else {
-        helper = depth0 && depth0.name;
-        stack1 = typeof helper === functionType ? helper.call(depth0, {
-            hash: {},
-            data: data
-        }) : helper;
+
+function initData(context, data) {
+    if (!data || !("root" in data)) {
+        data = data ? createFrame(data) : {};
+        data.root = context;
     }
-    buffer += escapeExpression(stack1) + "!";
-    return buffer;
-});
+    return data;
+}
 },
-"2":function(require,module,exports) {
+"1":function(require,module,exports) {
 "use strict";
 
 /*globals Handlebars: true */
-var base = require([ "main.js", "5" ]);
+var base = require([ "main.js", "3" ]);
 
 // Each of these augment the Handlebars object. No need to setup here.
 // (This is done to easily share code between commonjs and browse envs)
-var SafeString = require([ "main.js", "8" ])["default"];
+var SafeString = require([ "main.js", "6" ])["default"];
 
-var Exception = require([ "main.js", "6" ])["default"];
+var Exception = require([ "main.js", "4" ])["default"];
 
-var Utils = require([ "main.js", "7" ]);
+var Utils = require([ "main.js", "5" ]);
 
-var runtime = require([ "main.js", "4" ]);
+var runtime = require([ "main.js", "2" ]);
 
 // For compatibility and usage outside of module systems, make the Handlebars object a namespace
 var create = function() {
@@ -537,6 +651,7 @@ var create = function() {
     hb.SafeString = SafeString;
     hb.Exception = Exception;
     hb.Utils = Utils;
+    hb.escapeExpression = Utils.escapeExpression;
     hb.VM = runtime;
     hb.template = function(spec) {
         return runtime.template(spec, hb);
@@ -548,37 +663,16 @@ var Handlebars = create();
 
 Handlebars.create = create;
 
+Handlebars["default"] = Handlebars;
+
 exports["default"] = Handlebars;
 },
-"1":function(require,module,exports) {
-module.exports = require([ "main.js", "2" ])["default"].template(function(Handlebars, depth0, helpers, partials, data) {
-    this.compilerInfo = [ 4, ">= 1.0.0" ];
-    helpers = this.merge(helpers, Handlebars.helpers);
-    data = data || {};
-    var buffer = "", stack1, helper, functionType = "function", escapeExpression = this.escapeExpression;
-    buffer += "Your name is ";
-    if (helper = helpers.name) {
-        stack1 = helper.call(depth0, {
-            hash: {},
-            data: data
-        });
-    } else {
-        helper = depth0 && depth0.name;
-        stack1 = typeof helper === functionType ? helper.call(depth0, {
-            hash: {},
-            data: data
-        }) : helper;
-    }
-    buffer += escapeExpression(stack1) + ".";
-    return buffer;
-});
-},
 "0":function(require,module,exports) {
-var handlebars = require([ "main.js", "2" ]);
+var handlebars = require([ "main.js", "1" ]);
 
-var tmpl1 = require([ "main.js", "3" ]);
+var tmpl1 = require([ "main.js", "8" ]);
 
-var tmpl2 = require([ "main.js", "1" ]);
+var tmpl2 = require([ "main.js", "7" ]);
 
 window.__global = tmpl1({
     name: "foo"
