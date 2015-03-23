@@ -5,9 +5,9 @@ window["__MODULES__"].modules['main.js'] = {
 module.exports = require([ "main.js", "1" ])["default"].template({
     compiler: [ 6, ">= 2.0.0-beta.1" ],
     main: function(depth0, helpers, partials, data) {
-        var helper, functionType = "function", helperMissing = helpers.helperMissing, escapeExpression = this.escapeExpression;
-        return "My name is " + escapeExpression((helper = (helper = helpers.name || (depth0 != null ? depth0.name : depth0)) != null ? helper : helperMissing, 
-        typeof helper === functionType ? helper.call(depth0, {
+        var helper;
+        return "My name is " + this.escapeExpression((helper = (helper = helpers.name || (depth0 != null ? depth0.name : depth0)) != null ? helper : helpers.helperMissing, 
+        typeof helper === "function" ? helper.call(depth0, {
             name: "name",
             hash: {},
             data: data
@@ -20,9 +20,9 @@ module.exports = require([ "main.js", "1" ])["default"].template({
 module.exports = require([ "main.js", "1" ])["default"].template({
     compiler: [ 6, ">= 2.0.0-beta.1" ],
     main: function(depth0, helpers, partials, data) {
-        var helper, functionType = "function", helperMissing = helpers.helperMissing, escapeExpression = this.escapeExpression;
-        return "Your name is " + escapeExpression((helper = (helper = helpers.name || (depth0 != null ? depth0.name : depth0)) != null ? helper : helperMissing, 
-        typeof helper === functionType ? helper.call(depth0, {
+        var helper;
+        return "Your name is " + this.escapeExpression((helper = (helper = helpers.name || (depth0 != null ? depth0.name : depth0)) != null ? helper : helpers.helperMissing, 
+        typeof helper === "function" ? helper.call(depth0, {
             name: "name",
             hash: {},
             data: data
@@ -39,7 +39,7 @@ function SafeString(string) {
     this.string = string;
 }
 
-SafeString.prototype.toString = function() {
+SafeString.prototype.toString = SafeString.prototype.toHTML = function() {
     return "" + this.string;
 };
 
@@ -49,8 +49,6 @@ exports["default"] = SafeString;
 "use strict";
 
 /*jshint -W004 */
-var SafeString = require([ "main.js", "6" ])["default"];
-
 var escape = {
     "&": "&amp;",
     "<": "&lt;",
@@ -110,10 +108,22 @@ var isArray = Array.isArray || function(value) {
 
 exports.isArray = isArray;
 
+// Older IE versions do not directly support indexOf so we must implement our own, sadly.
+function indexOf(array, value) {
+    for (var i = 0, len = array.length; i < len; i++) {
+        if (array[i] === value) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+exports.indexOf = indexOf;
+
 function escapeExpression(string) {
     // don't escape SafeStrings, since they're already safe
-    if (string instanceof SafeString) {
-        return string.toString();
+    if (string && string.toHTML) {
+        return string.toHTML();
     } else {
         if (string == null) {
             return "";
@@ -149,6 +159,13 @@ function isEmpty(value) {
 
 exports.isEmpty = isEmpty;
 
+function blockParams(params, ids) {
+    params.path = ids;
+    return params;
+}
+
+exports.blockParams = blockParams;
+
 function appendContextPath(contextPath, id) {
     return (contextPath ? contextPath + "." : "") + id;
 }
@@ -161,19 +178,20 @@ exports.appendContextPath = appendContextPath;
 var errorProps = [ "description", "fileName", "lineNumber", "message", "name", "number", "stack" ];
 
 function Exception(message, node) {
-    var line;
-    if (node && node.firstLine) {
-        line = node.firstLine;
-        message += " - " + line + ":" + node.firstColumn;
+    var loc = node && node.loc, line, column;
+    if (loc) {
+        line = loc.start.line;
+        column = loc.start.column;
+        message += " - " + line + ":" + column;
     }
     var tmp = Error.prototype.constructor.call(this, message);
     // Unfortunately errors are not enumerable in Chrome (at least), so `for prop in tmp` doesn't work.
     for (var idx = 0; idx < errorProps.length; idx++) {
         this[errorProps[idx]] = tmp[errorProps[idx]];
     }
-    if (line) {
+    if (loc) {
         this.lineNumber = line;
-        this.column = node.firstColumn;
+        this.column = column;
     }
 }
 
@@ -188,7 +206,7 @@ var Utils = require([ "main.js", "5" ]);
 
 var Exception = require([ "main.js", "4" ])["default"];
 
-var VERSION = "2.0.0";
+var VERSION = "3.0.0";
 
 exports.VERSION = VERSION;
 
@@ -239,6 +257,9 @@ HandlebarsEnvironment.prototype = {
         if (toString.call(name) === objectType) {
             Utils.extend(this.partials, name);
         } else {
+            if (typeof partial === "undefined") {
+                throw new Exception("Attempting to register a partial as undefined");
+            }
             this.partials[name] = partial;
         }
     },
@@ -303,37 +324,42 @@ function registerDefaultHelpers(instance) {
         if (options.data) {
             data = createFrame(options.data);
         }
+        function execIteration(key, i, last) {
+            if (data) {
+                data.key = key;
+                data.index = i;
+                data.first = i === 0;
+                data.last = !!last;
+                if (contextPath) {
+                    data.contextPath = contextPath + key;
+                }
+            }
+            ret = ret + fn(context[key], {
+                data: data,
+                blockParams: Utils.blockParams([ context[key], key ], [ contextPath + key, null ])
+            });
+        }
         if (context && typeof context === "object") {
             if (isArray(context)) {
                 for (var j = context.length; i < j; i++) {
-                    if (data) {
-                        data.index = i;
-                        data.first = i === 0;
-                        data.last = i === context.length - 1;
-                        if (contextPath) {
-                            data.contextPath = contextPath + i;
-                        }
-                    }
-                    ret = ret + fn(context[i], {
-                        data: data
-                    });
+                    execIteration(i, i, i === context.length - 1);
                 }
             } else {
+                var priorKey;
                 for (var key in context) {
                     if (context.hasOwnProperty(key)) {
-                        if (data) {
-                            data.key = key;
-                            data.index = i;
-                            data.first = i === 0;
-                            if (contextPath) {
-                                data.contextPath = contextPath + key;
-                            }
+                        // We're running the iterations one step out of sync so we can detect
+                        // the last iteration without have to scan the object twice and create
+                        // an itermediate keys array. 
+                        if (priorKey) {
+                            execIteration(priorKey, i - 1);
                         }
-                        ret = ret + fn(context[key], {
-                            data: data
-                        });
+                        priorKey = key;
                         i++;
                     }
+                }
+                if (priorKey) {
+                    execIteration(priorKey, i - 1, true);
                 }
             }
         }
@@ -401,14 +427,12 @@ var logger = {
     INFO: 1,
     WARN: 2,
     ERROR: 3,
-    level: 3,
-    // can be overridden in the host environment
+    level: 1,
+    // Can be overridden in the host environment
     log: function(level, message) {
-        if (logger.level <= level) {
+        if (typeof console !== "undefined" && logger.level <= level) {
             var method = logger.methodMap[level];
-            if (typeof console !== "undefined" && console[method]) {
-                console[method].call(console, message);
-            }
+            (console[method] || console.log).call(console, message);
         }
     }
 };
@@ -467,42 +491,40 @@ function template(templateSpec, env) {
     // Note: Using env.VM references rather than local var references throughout this section to allow
     // for external users to override these as psuedo-supported APIs.
     env.VM.checkRevision(templateSpec.compiler);
-    var invokePartialWrapper = function(partial, indent, name, context, hash, helpers, partials, data, depths) {
-        if (hash) {
-            context = Utils.extend({}, context, hash);
+    var invokePartialWrapper = function(partial, context, options) {
+        if (options.hash) {
+            context = Utils.extend({}, context, options.hash);
         }
-        var result = env.VM.invokePartial.call(this, partial, name, context, helpers, partials, data, depths);
+        partial = env.VM.resolvePartial.call(this, partial, context, options);
+        var result = env.VM.invokePartial.call(this, partial, context, options);
         if (result == null && env.compile) {
-            var options = {
-                helpers: helpers,
-                partials: partials,
-                data: data,
-                depths: depths
-            };
-            partials[name] = env.compile(partial, {
-                data: data !== undefined,
-                compat: templateSpec.compat
-            }, env);
-            result = partials[name](context, options);
+            options.partials[options.name] = env.compile(partial, templateSpec.compilerOptions, env);
+            result = options.partials[options.name](context, options);
         }
         if (result != null) {
-            if (indent) {
+            if (options.indent) {
                 var lines = result.split("\n");
                 for (var i = 0, l = lines.length; i < l; i++) {
                     if (!lines[i] && i + 1 === l) {
                         break;
                     }
-                    lines[i] = indent + lines[i];
+                    lines[i] = options.indent + lines[i];
                 }
                 result = lines.join("\n");
             }
             return result;
         } else {
-            throw new Exception("The partial " + name + " could not be compiled when running in runtime-only mode");
+            throw new Exception("The partial " + options.name + " could not be compiled when running in runtime-only mode");
         }
     };
     // Just add water
     var container = {
+        strict: function(obj, name) {
+            if (!(name in obj)) {
+                throw new Exception('"' + name + '" not defined in ' + obj);
+            }
+            return obj[name];
+        },
         lookup: function(depths, name) {
             var len = depths.length;
             for (var i = 0; i < len; i++) {
@@ -520,10 +542,10 @@ function template(templateSpec, env) {
             return templateSpec[i];
         },
         programs: [],
-        program: function(i, data, depths) {
+        program: function(i, data, declaredBlockParams, blockParams, depths) {
             var programWrapper = this.programs[i], fn = this.fn(i);
-            if (data || depths) {
-                programWrapper = program(this, i, fn, data, depths);
+            if (data || depths || blockParams || declaredBlockParams) {
+                programWrapper = program(this, i, fn, data, declaredBlockParams, blockParams, depths);
             } else {
                 if (!programWrapper) {
                     programWrapper = this.programs[i] = program(this, i, fn);
@@ -554,11 +576,11 @@ function template(templateSpec, env) {
         if (!options.partial && templateSpec.useData) {
             data = initData(context, data);
         }
-        var depths;
+        var depths, blockParams = templateSpec.useBlockParams ? [] : undefined;
         if (templateSpec.useDepths) {
             depths = options.depths ? [ context ].concat(options.depths) : [ context ];
         }
-        return templateSpec.main.call(container, context, container.helpers, container.partials, data, depths);
+        return templateSpec.main.call(container, context, container.helpers, container.partials, data, blockParams, depths);
     };
     ret.isTop = true;
     ret._setup = function(options) {
@@ -572,39 +594,52 @@ function template(templateSpec, env) {
             container.partials = options.partials;
         }
     };
-    ret._child = function(i, data, depths) {
+    ret._child = function(i, data, blockParams, depths) {
+        if (templateSpec.useBlockParams && !blockParams) {
+            throw new Exception("must pass block params");
+        }
         if (templateSpec.useDepths && !depths) {
             throw new Exception("must pass parent depths");
         }
-        return program(container, i, templateSpec[i], data, depths);
+        return program(container, i, templateSpec[i], data, 0, blockParams, depths);
     };
     return ret;
 }
 
 exports.template = template;
 
-function program(container, i, fn, data, depths) {
+function program(container, i, fn, data, declaredBlockParams, blockParams, depths) {
     var prog = function(context, options) {
         options = options || {};
-        return fn.call(container, context, container.helpers, container.partials, options.data || data, depths && [ context ].concat(depths));
+        return fn.call(container, context, container.helpers, container.partials, options.data || data, blockParams && [ options.blockParams ].concat(blockParams), depths && [ context ].concat(depths));
     };
     prog.program = i;
     prog.depth = depths ? depths.length : 0;
+    prog.blockParams = declaredBlockParams || 0;
     return prog;
 }
 
 exports.program = program;
 
-function invokePartial(partial, name, context, helpers, partials, data, depths) {
-    var options = {
-        partial: true,
-        helpers: helpers,
-        partials: partials,
-        data: data,
-        depths: depths
-    };
+function resolvePartial(partial, context, options) {
+    if (!partial) {
+        partial = options.partials[options.name];
+    } else {
+        if (!partial.call && !options.name) {
+            // This is a dynamic partial that returned a string
+            options.name = partial;
+            partial = options.partials[partial];
+        }
+    }
+    return partial;
+}
+
+exports.resolvePartial = resolvePartial;
+
+function invokePartial(partial, context, options) {
+    options.partial = true;
     if (partial === undefined) {
-        throw new Exception("The partial " + name + " could not be found");
+        throw new Exception("The partial " + options.name + " could not be found");
     } else {
         if (partial instanceof Function) {
             return partial(context, options);
@@ -662,6 +697,17 @@ var create = function() {
 var Handlebars = create();
 
 Handlebars.create = create;
+
+/*jshint -W040 */
+/* istanbul ignore next */
+var root = typeof global !== "undefined" ? global : window, $Handlebars = root.Handlebars;
+
+/* istanbul ignore next */
+Handlebars.noConflict = function() {
+    if (root.Handlebars === Handlebars) {
+        root.Handlebars = $Handlebars;
+    }
+};
 
 Handlebars["default"] = Handlebars;
 

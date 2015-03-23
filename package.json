@@ -5,10 +5,10 @@
 	},
 	"description": "A handler for the webant module for handlebars requires.",
 	"keywords": ["ant", "handlebars", "webant"],
-	"version": "4.0.1",
+	"version": "4.1.0",
 	"dependencies": {
 		"js-string-escape": "1.0.x",
-		"handlebars": "~2.0.0"
+		"handlebars": "~3.0.0"
 	},
 	"devDependencies": {
 		"extend": "~2.0.0",
